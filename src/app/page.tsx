@@ -1,6 +1,6 @@
 'use client'
 
-import React, { useState, useEffect, useCallback } from 'react'
+import React, { useState, useEffect } from 'react'
 import Sidebar from '@/components/Sidebar/Sidebar'
 import ChatWindow from '@/components/Chat/ChatWindow'
 import { Chat, Message } from '@/types'
@@ -58,8 +58,19 @@ export default function Home() {
   const handleSendMessage = async (content: string) => {
     let chatId = currentChatId
 
+    // 1. Create optimistic user message
+    const tempId = crypto.randomUUID()
+    const optimisticMsg: Message = {
+      id: tempId,
+      chat_id: chatId || 'temp',
+      role: 'user',
+      content,
+      created_at: new Date().toISOString()
+    }
+    setMessages(prev => [...prev, optimisticMsg])
+
     try {
-      // 1. Create chat if it's the first message
+      // 2. Create chat if it's the first message
       if (!chatId) {
         const newChat = await createChat(DEMO_USER_ID, content.substring(0, 30) + '...')
         chatId = newChat.id
@@ -67,20 +78,27 @@ export default function Home() {
         setChats(prev => [newChat, ...prev])
       }
 
-      // 2. Save user message
+      // 3. Save user message in background & start AI response in parallel
       if (!chatId) throw new Error("Failed to initialize chat");
-      const userMsg = await saveMessage(chatId, 'user', content)
-      setMessages(prev => [...prev, userMsg])
 
-      // 3. Get AI response
+      const userMsgPromise = saveMessage(chatId, 'user', content)
+
       setIsTyping(true)
-      const aiContent = await generateChatResponse([...messages, userMsg])
+      const aiContentPromise = generateChatResponse([...messages, optimisticMsg])
 
-      // 4. Save AI message
+      // Wait for both user message save and AI response generation
+      const [userMsg, aiContent] = await Promise.all([userMsgPromise, aiContentPromise])
+
+      // 4. Update the optimistic message with the real one from DB
+      setMessages(prev => prev.map(m => m.id === tempId ? userMsg : m))
+
+      // 5. Save AI message and add to state
       const aiMsg = await saveMessage(chatId, 'assistant', aiContent)
       setMessages(prev => [...prev, aiMsg])
     } catch (err) {
       console.error('Chat error:', err)
+      // Remove the optimistic message if it failed
+      setMessages(prev => prev.filter(m => m.id !== tempId))
     } finally {
       setIsTyping(false)
     }

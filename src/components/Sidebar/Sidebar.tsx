@@ -37,7 +37,7 @@ export default function Sidebar({
     }
 
     return (
-        <aside className="w-80 h-screen flex flex-col bg-[var(--sidebar-bg)] border-r border-[var(--border-color)]">
+        <aside className="w-96 h-screen flex flex-col bg-[var(--sidebar-bg)] border-r border-[var(--border-color)]">
             {/* Header */}
             <div className="p-4 flex items-center justify-between">
                 <button className="p-2 hover:bg-[var(--sidebar-hover)] rounded-lg transition-colors">
