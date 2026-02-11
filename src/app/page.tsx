@@ -68,6 +68,7 @@ export default function Home() {
       }
 
       // 2. Save user message
+      if (!chatId) throw new Error("Failed to initialize chat");
       const userMsg = await saveMessage(chatId, 'user', content)
       setMessages(prev => [...prev, userMsg])
 
